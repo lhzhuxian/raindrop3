@@ -1,0 +1,15 @@
+#!/bin/bash
+./rainfall_seq 0 10 0.25 4 sample_4x4.in > ans.txt
+diff sample_4x4.out ans.txt
+./rainfall_seq 0 20 0.5 16 sample_16x16.in > ans.txt
+diff sample_16x16.out ans.txt
+./rainfall_seq 0 20 0.5 32 sample_32x32.in > ans.txt
+diff sample_32x32.out ans.txt
+./rainfall_seq 0 30 0.25 128 sample_128x128.in > ans.txt
+diff sample_128x128.out ans.txt
+./rainfall_seq 0 30 0.75 512 sample_512x512.in > ans.txt
+diff sample_512x512.out ans.txt
+./rainfall_seq 0 35 0.5 2048 sample_2048x2048.in > ans.txt
+diff sample_2048x2048.out ans.txt
+./rainfall_seq 0 50 0.5 4096 measurement_4096x4096.in > ans.txt
+diff measurement_4096x4096.out ans.txt

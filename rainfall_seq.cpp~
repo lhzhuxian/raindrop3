@@ -1,0 +1,175 @@
+#include <fstream>
+#include <iostream>
+#include <vector>
+#include <utility>
+#include <string>
+#include <limits.h>
+#include <algorithm>
+#include <time.h>
+#include <sys/time.h>
+#include <iomanip>
+
+using namespace std;
+
+double calc_time(struct timeval start, struct timeval end) {
+  double start_sec = (double)start.tv_sec + (double)start.tv_usec / 1000000.0 ;
+  double end_sec = (double)end.tv_sec + (double)end.tv_usec / 1000000.0;
+
+  if (end_sec < start_sec) {
+    return 0;
+  } else {
+    return end_sec - start_sec;
+  }
+}
+
+void PrintMatrix(vector<vector<float> > & current) {
+  for(auto & i : current) {
+    for(auto j :i) {
+      cout << j << ' ';
+    }
+    cout << endl;
+  }
+}
+int main(int argc, char ** argv) {
+  if(argc != 6) {
+    cerr << "Wrong Input" << endl;
+    exit(-1);
+  }
+  int thread_num = stoi(argv[1]);
+  int time_step = stoi(argv[2]);
+  float absorp_rate = stof(argv[3]);
+  int dimension = stoi(argv[4]);
+  string elevation_file = argv[5];
+
+  vector<vector<float> > current(dimension, \
+                              vector<float>(dimension, 0));
+  vector<vector<float> > result(dimension, \
+                              vector<float>(dimension, 0));
+  vector<vector<float> > update(dimension, \
+			      vector<float>(dimension, 0));
+  vector<vector<int> > lanscape(dimension, \
+				vector<int>(dimension, 0));
+  vector<vector<vector<pair<int, int> > > > direction(dimension, \
+				 vector<vector<pair<int, int> > >(dimension));
+  vector<pair<int, int> > dir;
+  dir.push_back({-1, 0});// 1 up
+  dir.push_back({1, 0});// 2 down
+  dir.push_back({0, -1});// 3 left
+  dir.push_back({0, 1});// 4 right
+
+  // read the lanscape
+  ifstream fin(elevation_file);
+  for(int i = 0; i < dimension; ++i) {
+    for(int j = 0; j < dimension; ++j) {
+      fin >> lanscape[i][j];
+    }
+  }
+
+  // set direction
+  for(int i = 0; i < dimension; ++i) {
+    for(int j = 0; j < dimension; ++j) {
+     
+      int min_height = lanscape[i][j];
+      for(auto d: dir) {
+	int x = i + d.first;
+	int y = j + d.second;
+	if(x >= 0 && x < dimension && \
+	   y >= 0 && y < dimension )  {
+	  min_height = min(min_height, lanscape[x][y]);
+	}
+      }
+      if(min_height == lanscape[i][j]) continue;
+      for(auto d: dir) {
+        int x = i + d.first;
+        int y = j + d.second;
+        if(x >= 0 && x < dimension && \
+	   y >= 0 && y < dimension && \
+	   lanscape[x][y] == min_height) {
+	  direction[i][j].push_back({x, y});
+	}
+      }
+     
+    }
+  }
+  
+
+  // rain simulation
+  struct timeval start_time, end_time;
+  gettimeofday(&start_time, NULL);
+  
+  int flag = 1;
+  if(time_step <= 0) flag = 0;
+  int complete_time = 0;
+  while(flag) {
+
+    for(int i = 0; i < dimension; ++i) {
+      for(int j = 0; j < dimension; ++j) {
+	// rain drop
+	if(time_step > 0) {
+	  current[i][j] += 1;
+	}
+	// absorp
+	if(current[i][j] > absorp_rate) {
+	  current[i][j] -= absorp_rate;
+	  result[i][j] += absorp_rate;
+	} else  {
+	  result[i][j] += current[i][j];
+	  current[i][j] = 0;
+	  
+	}
+	// trickle if there is a direction heading to
+	float trickle = 0;
+	if(direction[i][j].size() > 0) {
+	  if(current[i][j] > 1.0) {
+	    current[i][j] -= 1.0;
+	    trickle = 1.0;
+	  } else {
+	    trickle = current[i][j];
+	    current[i][j] = 0.0;
+	  }
+	  trickle /= direction[i][j].size();
+	  for(auto d: direction[i][j]) {
+	    int x = i + d.first;
+	    int y = j + d.second;
+	    update[x][y] += trickle;
+	  }
+	}
+
+      }
+    }
+
+    if(time_step > 0) time_step -= 1;
+    complete_time += 1;
+    int count = 0;
+    // update the merge
+    //PrintMatrix(update);
+    //cout << endl;
+    
+    for(int i = 0; i < dimension; ++i) {
+      for(int j = 0; j < dimension; ++j) {
+	current[i][j] += update[i][j];
+	update[i][j] = 0;
+	if(current[i][j] == 0.0) count += 1;
+      }
+    }
+    
+    if(time_step <= 0 && count == dimension * dimension) flag = 0;
+    //if(complete_time > 10) break;
+  }
+  gettimeofday(&end_time, NULL);
+  double run_time = calc_time(start_time, end_time);
+
+  // result
+  cout << "Rainfall simulation took " << complete_time << \
+    " time steps to complete." << endl;
+  cout << "Runtime = " << run_time << " seconds" << endl;
+  cout << "\n";
+  cout << "The following grid shows the number of raindrops absorbed at each point:" << endl;
+  for (unsigned i=0; i < dimension; i++) {
+    for (unsigned j=0; j < dimension; j++) {
+      cout << setw(8) << setprecision(6) << result[i][j];
+    } //for j                                                                                               
+    cout << endl;
+  } //for i     
+
+}
